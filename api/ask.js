@@ -37,7 +37,7 @@ If unsure, say: "I'm not sure—ask a guide."
     }
     const data = await r.json();
     const text = data?.choices?.[0]?.message?.content?.trim() || "No answer.";
-    return res.json({ answer: text, v: "no-trim-1" });
+    return res.json({ answer: text, v: "no-trim-2", len: text.length });
 
 
   } catch (e) {
