@@ -37,7 +37,7 @@ If unsure, say: "I'm not sure—ask a guide."
     }
     const data = await r.json();
     const text = data?.choices?.[0]?.message?.content?.trim() || "No answer.";
-    return res.json({ answer: text.slice(0, 220) });
+    return res.json({ answer: text.});
   } catch (e) {
     return res.status(500).json({ error: e.message || "server error" });
   }
