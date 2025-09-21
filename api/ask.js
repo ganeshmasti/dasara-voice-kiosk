@@ -23,7 +23,7 @@ If unsure, say: "I'm not sure—ask a guide."
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0.2,
-        max_tokens: 250,
+        max_tokens: 256,
         messages: [
           { role: "system", content: system },
           { role: "user", content: question }
