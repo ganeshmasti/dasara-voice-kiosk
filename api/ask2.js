@@ -22,7 +22,7 @@ If unsure, say: "I'm not sure—ask a guide."
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        temperature: 0.2,
+        temperature: 0.7,
         max_tokens: 256, // allow a full sentence without cutting
         messages: [
           { role: "system", content: system },
