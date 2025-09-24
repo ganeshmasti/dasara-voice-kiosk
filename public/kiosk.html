@@ -35,11 +35,23 @@
       display:flex; gap:8px; align-items:center; flex-wrap:nowrap;
       margin-top:4px;
     }
+    .input-wrap{
+      position:relative; flex:1 1 auto; min-width:0;
+    }
     .row input[type="text"]{
-      flex:1 1 auto; min-width:0;                 /* allows shrink on small screens */
-      padding:12px 14px; font-size:16px; background:#fff;
+      width:100%;
+      padding:12px 44px 12px 14px;             /* space for the X button */
+      font-size:16px; background:#fff;
       border:1px solid #ccc; border-radius:12px;
     }
+    .clear-btn{
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      width:32px; height:32px; border-radius:50%;
+      border:1px solid #ccc; background:#f5f5f5; color:#333;
+      display:none; align-items:center; justify-content:center;
+      cursor:pointer; line-height:1; font-size:18px;
+    }
+    .clear-btn.show{ display:inline-flex; }
     .row .btn{ flex:0 0 auto }                    /* buttons don't grow/shrink */
     button.primary.btn{
       padding:12px 16px; font-size:16px; border-radius:12px;
@@ -48,6 +60,10 @@
     button.alt.btn{
       padding:12px 12px; font-size:16px; border-radius:12px;
       border:1px solid #999; background:#f3f3f3; color:#111; cursor:pointer;
+    }
+    button.danger.btn{
+      padding:12px 12px; font-size:16px; border-radius:12px;
+      border:1px solid #b21f2d; background:#d62828; color:#fff; cursor:pointer;
     }
     .btn-icon{
       width:44px; height:44px; line-height:44px; padding:0; text-align:center;
@@ -84,7 +100,6 @@
     .bg-layer.show{ opacity:1 }
     .bg-layer.kenburns{ transform: scale(1.06) } /* subtle zoom */
     .ask-inner{ position: relative; z-index: 2; color: #fff }
-    .ask-inner input[type="text"]{ background: rgba(255,255,255,.92); color:#111 }
     .ask-inner .card{ background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.6); color:#111 }
     .ask-inner .hint{ color: rgba(255,255,255,.92) }
   </style>
@@ -108,9 +123,13 @@
 
       <div class="ask-inner">
         <div class="row">
-          <input id="q" type="text" placeholder="Type your question…" />
-          <button id="askBtn" class="primary btn">Ask</button>
-          <button id="micBtn" class="alt btn btn-icon" title="Speak your question">🎙️</button>
+          <div class="input-wrap">
+            <input id="q" type="text" placeholder="Type your question…" aria-label="Question" />
+            <button id="clearBtn" class="clear-btn" type="button" aria-label="Clear text">×</button>
+          </div>
+          <button id="askBtn" class="primary btn" type="button">Ask</button>
+          <button id="micBtn" class="alt btn btn-icon" type="button" title="Speak your question" aria-label="Speak">🎙️</button>
+          <button id="stopBtn" class="danger btn btn-icon" type="button" title="Stop speaking / cancel" aria-label="Stop">⏹️</button>
         </div>
 
         <div id="err" class="err" hidden></div>
@@ -144,14 +163,12 @@
     const ASK_ENDPOINT = "/api/ask_perplexity";
 
     // Background images for slideshow (put files in /public/photos/)
-    // Update this list to your real filenames:
     const PHOTO_BG = [
-      "/photos/PXL_20250922_185942930.PORTRAIT.jpg",
       "/photos/PXL_20250922_185931768.PORTRAIT.ORIGINAL.jpg",
+      "/photos/PXL_20250922_185942930.PORTRAIT.jpg",
       "/photos/illumination.jpg",
       "/photos/jumbo-savari.jpg"
     ];
-
     const SLIDE_INTERVAL_MS = 7000;   // time each image stays visible
     const KENBURNS = true;            // slow zoom effect
 
@@ -159,8 +176,10 @@
        Elements
        ========================================================= */
     const qEl = document.getElementById("q");
+    const clearBtn = document.getElementById("clearBtn");
     const askBtn = document.getElementById("askBtn");
     const micBtn = document.getElementById("micBtn");
+    const stopBtn = document.getElementById("stopBtn");
     const errEl = document.getElementById("err");
     const ansBox = document.getElementById("ans");
     const aEl = document.getElementById("a");
@@ -214,18 +233,66 @@
     }
 
     /* =========================================================
+       Stop (cancel everything)
+       ========================================================= */
+    let controller = null;      // AbortController for in-flight fetch
+    let rec = null;             // speech recognition instance
+
+    function stopAll() {
+      // 1) Stop any speaking
+      try { window.speechSynthesis?.cancel(); } catch {}
+
+      // 2) Abort any ongoing fetch
+      try { controller?.abort(); } catch {}
+      controller = null;
+
+      // 3) Abort speech recognition
+      try { rec?.abort(); } catch {}
+      rec = null;
+
+      // 4) Reset UI
+      askBtn.disabled = false;
+      askBtn.textContent = "Ask";
+    }
+
+    /* =========================================================
+       Clear input helper
+       ========================================================= */
+    function updateClearVisibility(){
+      clearBtn.classList.toggle('show', !!qEl.value.trim());
+    }
+    function clearInput(){
+      qEl.value = "";
+      updateClearVisibility();
+      // hide previous result/errors so it's ready for new question
+      ansBox.hidden = true;
+      srcEl.hidden = true;
+      errEl.hidden = true;
+      // also stop any ongoing activity
+      stopAll();
+      // focus back to input
+      qEl.focus();
+    }
+
+    /* =========================================================
        Ask flow
        ========================================================= */
     async function ask() {
       const q = qEl.value.trim();
       if (!q) return;
+      stopAll(); // ensure clean state
       errEl.hidden = true; ansBox.hidden = true; srcEl.hidden = true;
       askBtn.disabled = true; askBtn.textContent = "Asking…";
+
+      // make abortable
+      controller = new AbortController();
+
       try {
         const r = await fetch(ASK_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: q })
+          body: JSON.stringify({ question: q }),
+          signal: controller.signal
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Ask failed");
@@ -252,25 +319,39 @@
           window.speechSynthesis.speak(u);
         } catch {}
       } catch (e) {
-        errEl.textContent = "Error: " + e.message;
-        errEl.hidden = false;
+        if (e.name !== "AbortError") {
+          errEl.textContent = "Error: " + e.message;
+          errEl.hidden = false;
+        }
       } finally {
-        askBtn.disabled = false; askBtn.textContent = "Ask";
+        askBtn.disabled = false;
+        askBtn.textContent = "Ask";
+        controller = null;
       }
     }
 
+    /* =========================================================
+       Events
+       ========================================================= */
     askBtn.addEventListener("click", ask);
     qEl.addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+    qEl.addEventListener("input", updateClearVisibility);
+    clearBtn.addEventListener("click", clearInput);
 
     // Dictation
     micBtn.addEventListener("click", () => {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { alert("Speech recognition not supported. Please type your question."); return; }
-      const rec = new SR();
+      stopAll(); // stop TTS / fetch before starting mic
+      rec = new SR();
       rec.lang = "en-IN"; rec.interimResults = false; rec.maxAlternatives = 1;
-      rec.onresult = ev => { qEl.value = ev.results[0][0].transcript; setTimeout(ask, 50); };
+      rec.onresult = ev => { qEl.value = ev.results[0][0].transcript; updateClearVisibility(); setTimeout(ask, 50); };
+      rec.onend = () => { /* no-op */ };
+      rec.onerror = () => { rec = null; };
       rec.start();
     });
+
+    stopBtn.addEventListener("click", stopAll);
 
     /* =========================================================
        Tabs
@@ -283,6 +364,7 @@
       tabGuide.setAttribute("aria-selected", !isAsk ? "true" : "false");
       paneAsk.classList.toggle("active", isAsk);
       paneGuide.classList.toggle("active", !isAsk);
+      if (!isAsk) stopAll(); // stop audio/request when leaving Ask tab
     }
     tabAsk.onclick   = ()=>activate("ask");
     tabGuide.onclick = ()=>activate("guide");
@@ -290,6 +372,7 @@
     // Start
     activate("ask");
     startSlideshow();
+    updateClearVisibility();
   </script>
 </body>
 </html>
