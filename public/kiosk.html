@@ -30,20 +30,34 @@
     #pane-ask, #pane-guide { display:none }
     #pane-ask.active, #pane-guide.active { display:block }
 
-    /* ===== Ask UI ===== */
-    .row{ display:flex; gap:8px; margin-top:4px }
-    input[type="text"]{
-      flex:1; padding:12px 14px; font-size:16px; background:#fff;
+    /* ===== Controls row (mobile-stable) ===== */
+    .row{
+      display:flex; gap:8px; align-items:center; flex-wrap:nowrap;
+      margin-top:4px;
+    }
+    .row input[type="text"]{
+      flex:1 1 auto; min-width:0;                 /* allows shrink on small screens */
+      padding:12px 14px; font-size:16px; background:#fff;
       border:1px solid #ccc; border-radius:12px;
     }
-    button.primary{
+    .row .btn{ flex:0 0 auto }                    /* buttons don't grow/shrink */
+    button.primary.btn{
       padding:12px 16px; font-size:16px; border-radius:12px;
       border:1px solid #999; background:#111; color:#fff; cursor:pointer;
     }
-    button.alt{
-      padding:12px 14px; font-size:16px; border-radius:12px;
+    button.alt.btn{
+      padding:12px 12px; font-size:16px; border-radius:12px;
       border:1px solid #999; background:#f3f3f3; color:#111; cursor:pointer;
     }
+    .btn-icon{
+      width:44px; height:44px; line-height:44px; padding:0; text-align:center;
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+    @media (max-width: 360px){
+      button.primary.btn{ padding:10px 12px; font-size:15px }
+      .row{ gap:6px }
+    }
+
     .card{ margin-top:20px; padding:16px; border:1px solid #eee; border-radius:12px; background:#fff }
     .err{ color:#b00020; margin-top:12px }
     .hint{ margin-top:28px; font-size:13px; color:var(--muted) }
@@ -54,11 +68,7 @@
 
     /* ===== Slideshow background for Ask pane ===== */
     .bg-ask{
-      position: relative;
-      border-radius: 16px;
-      padding: 16px;
-      overflow: hidden;
-      min-height: 340px; /* adjust to taste */
+      position: relative; border-radius: 16px; padding: 16px; overflow: hidden; min-height: 340px;
     }
     .bg-layer{
       position:absolute; inset:0;
@@ -73,7 +83,6 @@
     .bg-layer.hidden{ opacity:0; pointer-events:none }
     .bg-layer.show{ opacity:1 }
     .bg-layer.kenburns{ transform: scale(1.06) } /* subtle zoom */
-
     .ask-inner{ position: relative; z-index: 2; color: #fff }
     .ask-inner input[type="text"]{ background: rgba(255,255,255,.92); color:#111 }
     .ask-inner .card{ background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.6); color:#111 }
@@ -100,8 +109,8 @@
       <div class="ask-inner">
         <div class="row">
           <input id="q" type="text" placeholder="Type your question…" />
-          <button id="askBtn" class="primary">Ask</button>
-          <button id="micBtn" class="alt" title="Speak your question">🎙️</button>
+          <button id="askBtn" class="primary btn">Ask</button>
+          <button id="micBtn" class="alt btn btn-icon" title="Speak your question">🎙️</button>
         </div>
 
         <div id="err" class="err" hidden></div>
@@ -137,10 +146,11 @@
     // Background images for slideshow (put files in /public/photos/)
     // Update this list to your real filenames:
     const PHOTO_BG = [
-      "/photos/PXL_20250922_185942930.PORTRAIT.jpg",
-      "/photos/PXL_20250922_185931768.PORTRAIT.ORIGINAL.jpg",
-      "/photos/ds1.jpg",
-     ];
+      "/photos/palace.jpg",
+      "/photos/procession.jpg",
+      "/photos/illumination.jpg",
+      "/photos/jumbo-savari.jpg"
+    ];
 
     const SLIDE_INTERVAL_MS = 7000;   // time each image stays visible
     const KENBURNS = true;            // slow zoom effect
@@ -175,10 +185,8 @@
     function setLayerBg(el, url) {
       el.style.backgroundImage = `url("${url}")`;
       if (KENBURNS) {
-        // restart subtle zoom
         el.classList.remove('kenburns');
-        // force reflow to restart animation
-        void el.offsetWidth;
+        void el.offsetWidth;          // restart animation
         el.classList.add('kenburns');
       }
     }
@@ -192,17 +200,14 @@
 
       setInterval(() => {
         const next = PHOTO_BG[(idx + 1) % PHOTO_BG.length];
-        // Put next image on the hidden layer
         const top = (idx % 2 === 0) ? bgB : bgA;
         const bottom = (idx % 2 === 0) ? bgA : bgB;
 
         setLayerBg(top, next);
 
         // Crossfade
-        top.classList.remove('hidden');
-        top.classList.add('show');
-        bottom.classList.remove('show');
-        bottom.classList.add('hidden');
+        top.classList.remove('hidden');  top.classList.add('show');
+        bottom.classList.remove('show'); bottom.classList.add('hidden');
 
         idx = (idx + 1) % PHOTO_BG.length;
       }, SLIDE_INTERVAL_MS);
