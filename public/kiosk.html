@@ -4,80 +4,101 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mysuru Dasara Guide</title>
+  <meta name="theme-color" content="#111" />
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f7f7f8;margin:0}
-    .wrap{max-width:720px;margin:0 auto;padding:24px}
-    h1{margin:0 0 6px 0} p{margin:0 0 16px 0;opacity:.8}
-    .tabs{display:flex;gap:8px;margin:8px 0 16px}
-    .tab{padding:10px 14px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer}
-    .tab.active{background:#111;color:#fff;border-color:#111}
-    .row{display:flex;gap:8px;margin-top:12px}
-    input{flex:1;padding:12px 14px;font-size:16px;border:1px solid #ccc;border-radius:12px;background:#fff}
-    button{padding:12px 16px;font-size:16px;border-radius:12px;border:1px solid #999;background:#111;color:#fff;cursor:pointer}
-    button.alt{background:#f3f3f3;color:#111}
-    .card{margin-top:20px;padding:16px;border:1px solid #eee;border-radius:12px;background:#fff}
-    .err{color:#b00020;margin-top:12px}
-    .src{font-size:13px;opacity:.75;margin-top:10px}
-    a{color:#0b57d0;text-decoration:none}
-    /* NEW: content pane */
-    #pane-ask, #pane-guide { display:none; }
-    #pane-ask.active, #pane-guide.active { display:block; }
-    /* NEW: iframe is responsive height */
-    .guideBox{border:1px solid #eee;border-radius:12px;background:#fff;overflow:hidden}
-    .guideFrame{width:100%;height:70vh;border:0}
+    /* Base */
+    :root{ --fg:#111; --muted:#777; --bg:#f7f7f8; --card:#fff; --border:#ddd; --accent:#111; }
+    *{ box-sizing:border-box }
+    body{ font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); margin:0 }
+    a{ color:#0b57d0; text-decoration:none }
+
+    .wrap{ max-width:760px; margin:0 auto; padding:24px }
+    h1{ margin:0 0 6px 0; font-size:34px; line-height:1.1 }
+    p.lead{ margin:0 0 16px 0; color:var(--muted) }
+
+    /* Tabs */
+    .tabs{ display:flex; gap:10px; margin:12px 0 16px }
+    .tab{
+      flex:1; text-align:center; padding:10px 14px;
+      border-radius:9999px; background:#fff; color:var(--fg);
+      border:2px solid var(--border); font-weight:600; cursor:pointer;
+      transition:all .15s ease;
+    }
+    .tab:hover{ border-color:#bbb }
+    .tab.active{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset }
+
+    /* Panes */
+    #pane-ask, #pane-guide { display:none }
+    #pane-ask.active, #pane-guide.active { display:block }
+
+    /* Ask UI */
+    .row{ display:flex; gap:8px; margin-top:4px }
+    input[type="text"]{
+      flex:1; padding:12px 14px; font-size:16px; background:#fff;
+      border:1px solid #ccc; border-radius:12px;
+    }
+    button.primary{
+      padding:12px 16px; font-size:16px; border-radius:12px;
+      border:1px solid #999; background:#111; color:#fff; cursor:pointer;
+    }
+    button.alt{
+      padding:12px 14px; font-size:16px; border-radius:12px;
+      border:1px solid #999; background:#f3f3f3; color:#111; cursor:pointer;
+    }
+    .card{ margin-top:20px; padding:16px; border:1px solid #eee; border-radius:12px; background:#fff }
+    .err{ color:#b00020; margin-top:12px }
+
+    /* Guide pane */
+    .guideBox{ border:1px solid #eee; border-radius:12px; background:#fff; overflow:hidden }
+    .guideFrame{ width:100%; height:70vh; border:0 }
+    .hint{ margin-top:28px; font-size:13px; color:var(--muted) }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Mysuru Dasara Guide</h1>
-    <p>Ask about timings, Jumbo Savari, routes, history, etc.</p>
+    <p class="lead">Ask about timings, Jumbo Savari, routes, history, and more.</p>
 
-    <!-- NEW: Tabs -->
-    <div class="tabs">
-      <button id="tabAsk" class="tab active">Ask</button>
-      <button id="tabGuide" class="tab">Guide</button>
+    <!-- Tabs -->
+    <div class="tabs" role="tablist">
+      <button id="tabAsk"   class="tab active" role="tab" aria-selected="true">Ask</button>
+      <button id="tabGuide" class="tab"        role="tab" aria-selected="false">Guide</button>
     </div>
 
-    <!-- ASK PANE (your existing UI) -->
-    <div id="pane-ask" class="active">
+    <!-- ASK PANE -->
+    <section id="pane-ask" class="active" aria-labelledby="tabAsk">
       <div class="row">
-        <input id="q" placeholder="Type your question…" />
-        <button id="askBtn">Ask</button>
+        <input id="q" type="text" placeholder="Type your question…" />
+        <button id="askBtn" class="primary">Ask</button>
         <button id="micBtn" class="alt" title="Speak your question">🎙️</button>
       </div>
 
       <div id="err" class="err" hidden></div>
+
       <div id="ans" class="card" hidden>
         <strong>Answer:</strong> <span id="a"></span>
-        <div id="src" class="src" hidden></div>
-      </div>
-    </div>
-
-    <!-- NEW: GUIDE PANE -->
-    <div id="pane-guide">
-      <!-- Option A: local HTML (recommended) -->
-      <div class="guideBox">
-        <iframe class="guideFrame" src="/guide.html"></iframe>
+        <div id="src" class="hint" hidden></div>
       </div>
 
-      <!-- Option B (alternative): local PDF
-      <div class="guideBox">
-        <iframe class="guideFrame" src="/guide.pdf#view=FitH&toolbar=0"></iframe>
+      <div class="hint">
+        Tip: allow microphone access on your phone for hands-free questions. Answers are read aloud automatically.
       </div>
-      -->
+    </section>
 
-      <!-- Option C (last resort): published Google Doc link in an iframe.
-           Must be 'Publish to the web' public, and CORS/embedding allowed.
+    <!-- GUIDE PANE -->
+    <section id="pane-guide" aria-labelledby="tabGuide">
+      <!-- Use guide.html (local content) -->
       <div class="guideBox">
-        <iframe class="guideFrame" src="https://docs.google.com/document/d/DOC_ID/pub?embedded=true"></iframe>
+        <iframe class="guideFrame" src="/guide.html" title="Dasara Guide"></iframe>
       </div>
-      -->
-    </div>
+    </section>
   </div>
 
   <script>
-    // === Ask logic (unchanged) ===
-    const ASK_ENDPOINT = "/api/ask_perplexity";
+    // ===== Settings =====
+    const ASK_ENDPOINT = "/api/ask_perplexity"; // your serverless function
+
+    // ===== Elements =====
     const qEl = document.getElementById("q");
     const askBtn = document.getElementById("askBtn");
     const micBtn = document.getElementById("micBtn");
@@ -86,6 +107,7 @@
     const aEl = document.getElementById("a");
     const srcEl = document.getElementById("src");
 
+    // ===== Ask flow =====
     async function ask() {
       const q = qEl.value.trim();
       if (!q) return;
@@ -94,13 +116,18 @@
       try {
         const r = await fetch(ASK_ENDPOINT, {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: q })
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Ask failed");
+
+        // Clean and show text
         const text = (data.answer || "").replace(/\s*\[\d+\]/g, "").trim();
-        aEl.textContent = text; ansBox.hidden = false;
+        aEl.textContent = text || "(no answer)";
+        ansBox.hidden = false;
+
+        // Show sources (if provided)
         const sources = data.sources || [];
         if (sources.length) {
           srcEl.innerHTML = "Sources: " + sources.slice(0,3).map(s=>{
@@ -110,40 +137,53 @@
           }).join(", ");
           srcEl.hidden = false;
         }
-        try { window.speechSynthesis.cancel();
+
+        // Speak back
+        try {
+          window.speechSynthesis.cancel();
           const u = new SpeechSynthesisUtterance(text.slice(0, 280));
-          u.lang = "en-IN"; window.speechSynthesis.speak(u);
+          u.lang = "en-IN";
+          window.speechSynthesis.speak(u);
         } catch {}
       } catch (e) {
-        errEl.textContent = "Error: " + e.message; errEl.hidden = false;
+        errEl.textContent = "Error: " + e.message;
+        errEl.hidden = false;
       } finally {
         askBtn.disabled = false; askBtn.textContent = "Ask";
       }
     }
+
     askBtn.addEventListener("click", ask);
     qEl.addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+
+    // Dictation
     micBtn.addEventListener("click", () => {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { alert("Speech recognition not supported. Please type."); return; }
-      const rec = new SR(); rec.lang = "en-IN"; rec.interimResults = false; rec.maxAlternatives = 1;
+      if (!SR) { alert("Speech recognition not supported. Please type your question."); return; }
+      const rec = new SR();
+      rec.lang = "en-IN"; rec.interimResults = false; rec.maxAlternatives = 1;
       rec.onresult = ev => { qEl.value = ev.results[0][0].transcript; setTimeout(ask, 50); };
       rec.start();
     });
 
-    // === NEW: simple tabs ===
-    const tabAsk = document.getElementById("tabAsk");
+    // ===== Tabs =====
+    const tabAsk   = document.getElementById("tabAsk");
     const tabGuide = document.getElementById("tabGuide");
-    const paneAsk = document.getElementById("pane-ask");
-    const paneGuide = document.getElementById("pane-guide");
+    const paneAsk  = document.getElementById("pane-ask");
+    const paneGuide= document.getElementById("pane-guide");
+
     function activate(which){
-      [tabAsk, tabGuide].forEach(b=>b.classList.remove("active"));
-      [paneAsk, paneGuide].forEach(p=>p.classList.remove("active"));
-      if(which==="ask"){ tabAsk.classList.add("active"); paneAsk.classList.add("active"); }
-      else { tabGuide.classList.add("active"); paneGuide.classList.add("active"); }
+      const isAsk = which === "ask";
+      tabAsk.classList.toggle("active", isAsk);
+      tabGuide.classList.toggle("active", !isAsk);
+      tabAsk.setAttribute("aria-selected", isAsk ? "true" : "false");
+      tabGuide.setAttribute("aria-selected", !isAsk ? "true" : "false");
+      paneAsk.classList.toggle("active", isAsk);
+      paneGuide.classList.toggle("active", !isAsk);
     }
     tabAsk.onclick = ()=>activate("ask");
     tabGuide.onclick = ()=>activate("guide");
-    activate("ask"); // default
+    activate("ask"); // default on load
   </script>
 </body>
 </html>
