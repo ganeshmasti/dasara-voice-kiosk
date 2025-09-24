@@ -6,17 +6,16 @@
   <title>Mysuru Dasara Guide</title>
   <meta name="theme-color" content="#111" />
   <style>
-    /* Base */
+    /* ===== Base ===== */
     :root{ --fg:#111; --muted:#777; --bg:#f7f7f8; --card:#fff; --border:#ddd; --accent:#111; }
     *{ box-sizing:border-box }
     body{ font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); margin:0 }
     a{ color:#0b57d0; text-decoration:none }
-
     .wrap{ max-width:760px; margin:0 auto; padding:24px }
     h1{ margin:0 0 6px 0; font-size:34px; line-height:1.1 }
     p.lead{ margin:0 0 16px 0; color:var(--muted) }
 
-    /* Tabs */
+    /* ===== Tabs ===== */
     .tabs{ display:flex; gap:10px; margin:12px 0 16px }
     .tab{
       flex:1; text-align:center; padding:10px 14px;
@@ -27,11 +26,11 @@
     .tab:hover{ border-color:#bbb }
     .tab.active{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset }
 
-    /* Panes */
+    /* ===== Panes ===== */
     #pane-ask, #pane-guide { display:none }
     #pane-ask.active, #pane-guide.active { display:block }
 
-    /* Ask UI */
+    /* ===== Ask UI ===== */
     .row{ display:flex; gap:8px; margin-top:4px }
     input[type="text"]{
       flex:1; padding:12px 14px; font-size:16px; background:#fff;
@@ -47,11 +46,38 @@
     }
     .card{ margin-top:20px; padding:16px; border:1px solid #eee; border-radius:12px; background:#fff }
     .err{ color:#b00020; margin-top:12px }
+    .hint{ margin-top:28px; font-size:13px; color:var(--muted) }
 
-    /* Guide pane */
+    /* ===== Guide pane ===== */
     .guideBox{ border:1px solid #eee; border-radius:12px; background:#fff; overflow:hidden }
     .guideFrame{ width:100%; height:70vh; border:0 }
-    .hint{ margin-top:28px; font-size:13px; color:var(--muted) }
+
+    /* ===== Slideshow background for Ask pane ===== */
+    .bg-ask{
+      position: relative;
+      border-radius: 16px;
+      padding: 16px;
+      overflow: hidden;
+      min-height: 340px; /* adjust to taste */
+    }
+    .bg-layer{
+      position:absolute; inset:0;
+      background-size:cover; background-position:center;
+      transition: opacity 1.2s ease-in-out, transform 8s ease;
+      will-change: opacity, transform;
+    }
+    .bg-layer.dim::after{
+      content:""; position:absolute; inset:0;
+      background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.45));
+    }
+    .bg-layer.hidden{ opacity:0; pointer-events:none }
+    .bg-layer.show{ opacity:1 }
+    .bg-layer.kenburns{ transform: scale(1.06) } /* subtle zoom */
+
+    .ask-inner{ position: relative; z-index: 2; color: #fff }
+    .ask-inner input[type="text"]{ background: rgba(255,255,255,.92); color:#111 }
+    .ask-inner .card{ background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.6); color:#111 }
+    .ask-inner .hint{ color: rgba(255,255,255,.92) }
   </style>
 </head>
 <body>
@@ -65,40 +91,64 @@
       <button id="tabGuide" class="tab"        role="tab" aria-selected="false">Guide</button>
     </div>
 
-    <!-- ASK PANE -->
-    <section id="pane-ask" class="active" aria-labelledby="tabAsk">
-      <div class="row">
-        <input id="q" type="text" placeholder="Type your question…" />
-        <button id="askBtn" class="primary">Ask</button>
-        <button id="micBtn" class="alt" title="Speak your question">🎙️</button>
-      </div>
+    <!-- ===== ASK PANE with slideshow background ===== -->
+    <section id="pane-ask" class="active bg-ask" aria-labelledby="tabAsk">
+      <!-- two cross-fading layers -->
+      <div id="bgA" class="bg-layer dim show"></div>
+      <div id="bgB" class="bg-layer dim hidden"></div>
 
-      <div id="err" class="err" hidden></div>
+      <div class="ask-inner">
+        <div class="row">
+          <input id="q" type="text" placeholder="Type your question…" />
+          <button id="askBtn" class="primary">Ask</button>
+          <button id="micBtn" class="alt" title="Speak your question">🎙️</button>
+        </div>
 
-      <div id="ans" class="card" hidden>
-        <strong>Answer:</strong> <span id="a"></span>
-        <div id="src" class="hint" hidden></div>
-      </div>
+        <div id="err" class="err" hidden></div>
 
-      <div class="hint">
-        Tip: allow microphone access on your phone for hands-free questions. Answers are read aloud automatically.
+        <div id="ans" class="card" hidden>
+          <strong>Answer:</strong> <span id="a"></span>
+          <div id="src" class="hint" hidden></div>
+        </div>
+
+        <div class="hint">
+          Tip: allow microphone access on your phone for hands-free questions. Answers are read aloud automatically.
+        </div>
       </div>
     </section>
 
-    <!-- GUIDE PANE -->
+    <!-- ===== GUIDE PANE ===== -->
     <section id="pane-guide" aria-labelledby="tabGuide">
-      <!-- Use guide.html (local content) -->
       <div class="guideBox">
         <iframe class="guideFrame" src="/guide.html" title="Dasara Guide"></iframe>
       </div>
+      <p class="hint" style="margin-top:8px">
+        <a href="/guide.html" target="_blank" rel="noreferrer">Open the full guide ↗</a>
+      </p>
     </section>
   </div>
 
   <script>
-    // ===== Settings =====
-    const ASK_ENDPOINT = "/api/ask_perplexity"; // your serverless function
+    /* =========================================================
+       Settings
+       ========================================================= */
+    const ASK_ENDPOINT = "/api/ask_perplexity";
 
-    // ===== Elements =====
+    // Background images for slideshow (put files in /public/photos/)
+    // Update this list to your real filenames:
+    const PHOTO_BG = [
+      "/photos/palace.jpg",
+      "/photos/procession.jpg",
+      "/photos/illumination.jpg",
+      "/photos/jumbo-savari.jpg"
+    ];
+
+    const SLIDE_INTERVAL_MS = 7000;   // time each image stays visible
+    const KENBURNS = true;            // slow zoom effect
+
+    /* =========================================================
+       Elements
+       ========================================================= */
     const qEl = document.getElementById("q");
     const askBtn = document.getElementById("askBtn");
     const micBtn = document.getElementById("micBtn");
@@ -107,7 +157,61 @@
     const aEl = document.getElementById("a");
     const srcEl = document.getElementById("src");
 
-    // ===== Ask flow =====
+    const tabAsk   = document.getElementById("tabAsk");
+    const tabGuide = document.getElementById("tabGuide");
+    const paneAsk  = document.getElementById("pane-ask");
+    const paneGuide= document.getElementById("pane-guide");
+
+    const bgA = document.getElementById("bgA");
+    const bgB = document.getElementById("bgB");
+
+    /* =========================================================
+       Slideshow background
+       ========================================================= */
+    // Preload images
+    const preloaded = [];
+    PHOTO_BG.forEach(src => { const img = new Image(); img.src = src; preloaded.push(img); });
+
+    let idx = 0;
+    function setLayerBg(el, url) {
+      el.style.backgroundImage = `url("${url}")`;
+      if (KENBURNS) {
+        // restart subtle zoom
+        el.classList.remove('kenburns');
+        // force reflow to restart animation
+        void el.offsetWidth;
+        el.classList.add('kenburns');
+      }
+    }
+
+    function startSlideshow() {
+      if (!PHOTO_BG.length) return;
+      // initial image
+      setLayerBg(bgA, PHOTO_BG[0]);
+      bgA.classList.add('show'); bgA.classList.remove('hidden');
+      bgB.classList.remove('show'); bgB.classList.add('hidden');
+
+      setInterval(() => {
+        const next = PHOTO_BG[(idx + 1) % PHOTO_BG.length];
+        // Put next image on the hidden layer
+        const top = (idx % 2 === 0) ? bgB : bgA;
+        const bottom = (idx % 2 === 0) ? bgA : bgB;
+
+        setLayerBg(top, next);
+
+        // Crossfade
+        top.classList.remove('hidden');
+        top.classList.add('show');
+        bottom.classList.remove('show');
+        bottom.classList.add('hidden');
+
+        idx = (idx + 1) % PHOTO_BG.length;
+      }, SLIDE_INTERVAL_MS);
+    }
+
+    /* =========================================================
+       Ask flow
+       ========================================================= */
     async function ask() {
       const q = qEl.value.trim();
       if (!q) return;
@@ -122,12 +226,10 @@
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Ask failed");
 
-        // Clean and show text
         const text = (data.answer || "").replace(/\s*\[\d+\]/g, "").trim();
         aEl.textContent = text || "(no answer)";
         ansBox.hidden = false;
 
-        // Show sources (if provided)
         const sources = data.sources || [];
         if (sources.length) {
           srcEl.innerHTML = "Sources: " + sources.slice(0,3).map(s=>{
@@ -166,14 +268,11 @@
       rec.start();
     });
 
-    // ===== Tabs =====
-    const tabAsk   = document.getElementById("tabAsk");
-    const tabGuide = document.getElementById("tabGuide");
-    const paneAsk  = document.getElementById("pane-ask");
-    const paneGuide= document.getElementById("pane-guide");
-
+    /* =========================================================
+       Tabs
+       ========================================================= */
     function activate(which){
-      const isAsk = which === "ask";
+      const isAsk = which==="ask";
       tabAsk.classList.toggle("active", isAsk);
       tabGuide.classList.toggle("active", !isAsk);
       tabAsk.setAttribute("aria-selected", isAsk ? "true" : "false");
@@ -181,9 +280,12 @@
       paneAsk.classList.toggle("active", isAsk);
       paneGuide.classList.toggle("active", !isAsk);
     }
-    tabAsk.onclick = ()=>activate("ask");
+    tabAsk.onclick   = ()=>activate("ask");
     tabGuide.onclick = ()=>activate("guide");
-    activate("ask"); // default on load
+
+    // Start
+    activate("ask");
+    startSlideshow();
   </script>
 </body>
 </html>
